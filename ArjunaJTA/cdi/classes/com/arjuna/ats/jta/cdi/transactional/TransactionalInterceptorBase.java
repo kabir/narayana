@@ -182,7 +182,7 @@ public abstract class TransactionalInterceptorBase implements Serializable {
             handleException(ic, e, tx);
         } finally {
             if (throwing || ret == null
-                || !ContextPropagationAsyncHandler.tryHandleAsynchronously(tm, tx, getTransactional(ic), ret, afterEndTransaction)) {
+                || !ContextPropagationAsyncHandler.tryHandleAsynchronously(tm, tx, getTransactional(ic), ret, ic.getMethod().getReturnType(), afterEndTransaction)) {
                 // is throwing (OR) is null (OR) is not asynchronous type (OR) no async handler classes on classpath : handle synchronously
                 TransactionHandler.endTransaction(tm, tx, afterEndTransaction);
             }

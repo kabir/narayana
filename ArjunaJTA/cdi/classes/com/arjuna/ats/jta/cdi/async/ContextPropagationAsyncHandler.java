@@ -61,20 +61,23 @@ public final class ContextPropagationAsyncHandler {
      * @param transactional  link to method which is annotated with @{@link Transactional}
      * @param objectToHandle  on interceptor proceed this is the returned type which differentiate the action;
      *                        method changes the object when it was handled asynchronously
+     * @param returnType
      * @param afterEndTransaction  a lamda invocation on transaction finalization
      * @return true if async handling is possible and it was proceeded, false means async processing is not possible;
      *   the method changes the parameter 'objectToHandle', which is passed by reference, when 'true' is returned
      * @throws Exception failure on async processing error happens
      */
     public static boolean tryHandleAsynchronously(
-            TransactionManager tm, Transaction tx, Transactional transactional, Object objectToHandle, RunnableWithException afterEndTransaction) throws Exception {
+            TransactionManager tm, Transaction tx, Transactional transactional, Object objectToHandle,
+            Class<?> returnType, RunnableWithException afterEndTransaction) throws Exception {
         if (objectToHandle instanceof CompletionStage) {
             // checking if the returned type is CompletionStage, it's certain to be s on classpath as it's under JDK java.util.concurrent package
             objectToHandle = handleAsync(tm, tx, transactional, objectToHandle, afterEndTransaction);
         } else if (areSmallRyeReactiveClassesAvailable) {
             // the smallrye reactive classes and converter utility class are available, trying to convert the returned object to the known async type
             ReactiveTypeConverter<Object> converter = null;
-            if (objectToHandle instanceof CompletionStage == false && objectToHandle instanceof Publisher == false) {
+            if (objectToHandle instanceof CompletionStage == false
+                    && (objectToHandle instanceof Publisher == false || returnType != Publisher.class)) {
                 @SuppressWarnings({ "rawtypes", "unchecked" })
                 Optional<ReactiveTypeConverter<Object>> lookup = Registry.lookup((Class) objectToHandle.getClass());
                 if (lookup.isPresent()) {
