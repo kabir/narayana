@@ -73,6 +73,9 @@ public final class ContextPropagationAsyncHandler {
             Class<?> returnType, RunnableWithException afterEndTransaction) throws Exception {
 
         Object objectToHandle = objectToHandleRef.get();
+        if (objectToHandle == null) {
+            return false;
+        }
         if (objectToHandle instanceof CompletionStage) {
             // checking if the returned type is CompletionStage, it's certain to be s on classpath as it's under JDK java.util.concurrent package
             objectToHandle = handleAsync(tm, tx, transactional, objectToHandle, afterEndTransaction);
