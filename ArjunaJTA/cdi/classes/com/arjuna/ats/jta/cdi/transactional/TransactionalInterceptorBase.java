@@ -45,6 +45,7 @@ import java.lang.annotation.Annotation;
 import java.security.PrivilegedAction;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.security.AccessController.doPrivileged;
 
@@ -181,10 +182,16 @@ public abstract class TransactionalInterceptorBase implements Serializable {
             throwing = true;
             handleException(ic, e, tx);
         } finally {
-            if (throwing || ret == null
-                || !ContextPropagationAsyncHandler.tryHandleAsynchronously(tm, tx, getTransactional(ic), ret, ic.getMethod().getReturnType(), afterEndTransaction)) {
+            AtomicReference<Object> retRef = new AtomicReference<>(ret);
+            boolean asyncReturnType =
+                    ContextPropagationAsyncHandler.tryHandleAsynchronously(
+                            tm, tx, getTransactional(ic), retRef, ic.getMethod().getReturnType(), afterEndTransaction);
+            if (throwing || ret == null || !asyncReturnType) {
                 // is throwing (OR) is null (OR) is not asynchronous type (OR) no async handler classes on classpath : handle synchronously
                 TransactionHandler.endTransaction(tm, tx, afterEndTransaction);
+            }
+            if (asyncReturnType) {
+                ret = retRef.get();
             }
         }
         return ret;

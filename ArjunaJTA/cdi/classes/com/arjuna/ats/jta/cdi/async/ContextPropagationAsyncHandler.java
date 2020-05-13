@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Handling asynchronous context propagation calls.
@@ -59,17 +60,19 @@ public final class ContextPropagationAsyncHandler {
      * @param tm  transaction manager
      * @param tx  the original transaction
      * @param transactional  link to method which is annotated with @{@link Transactional}
-     * @param objectToHandle  on interceptor proceed this is the returned type which differentiate the action;
+     * @param objectToHandleRef  on interceptor proceed this is the returned type which differentiate the action;
      *                        method changes the object when it was handled asynchronously
      * @param returnType
      * @param afterEndTransaction  a lamda invocation on transaction finalization
-     * @return true if async handling is possible and it was proceeded, false means async processing is not possible;
-     *   the method changes the parameter 'objectToHandle', which is passed by reference, when 'true' is returned
+     * @return @{code true} if async handling is possible and it was proceeded, @{code false} means async processing is not possible;
+     *   the method changes the value referenced by @{code objectToHandleRef}, when @{code true} is returned
      * @throws Exception failure on async processing error happens
      */
     public static boolean tryHandleAsynchronously(
-            TransactionManager tm, Transaction tx, Transactional transactional, Object objectToHandle,
+            TransactionManager tm, Transaction tx, Transactional transactional, AtomicReference objectToHandleRef,
             Class<?> returnType, RunnableWithException afterEndTransaction) throws Exception {
+
+        Object objectToHandle = objectToHandleRef.get();
         if (objectToHandle instanceof CompletionStage) {
             // checking if the returned type is CompletionStage, it's certain to be s on classpath as it's under JDK java.util.concurrent package
             objectToHandle = handleAsync(tm, tx, transactional, objectToHandle, afterEndTransaction);
@@ -108,6 +111,7 @@ public final class ContextPropagationAsyncHandler {
             return false;
         }
         // the returned type is the asynchronous type and the type was handled
+        objectToHandleRef.set(objectToHandle);
         return true;
     }
 
